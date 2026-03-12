@@ -1,26 +1,141 @@
 import os
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 
 WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 WORKSPACE_ID = os.getenv("WORKSPACE_ID")
 
-headers = {"Authorization": f"Bearer {WEEEK_TOKEN}"}
+BASE_URL = "https://api.weeek.net/public/v1/tm/tasks"
+PROJECTS_URL = "https://api.weeek.net/public/v1/tm/projects"
 
-yesterday = (datetime.now() - timedelta(days=1)).strftime("%d.%m.%Y")
+headers = {
+    "Authorization": f"Bearer {WEEEK_TOKEN}"
+}
 
-# тест 1 — параметр dayTo (все задачи до вчера)
-r = requests.get(
-    "https://api.weeek.net/public/v1/tm/tasks",
-    headers=headers,
-    params={"workspaceId": WORKSPACE_ID, "dayTo": yesterday, "offset": 0}
-)
-print(f"dayTo={yesterday} → status={r.status_code} | {r.text[:300]}")
+today = datetime.now().strftime("%d.%m.%Y")
 
-# тест 2 — параметр overdue
-r2 = requests.get(
-    "https://api.weeek.net/public/v1/tm/tasks",
-    headers=headers,
-    params={"workspaceId": WORKSPACE_ID, "overdue": True, "offset": 0}
-)
-print(f"overdue=true → status={r2.status_code} | {r2.text[:300]}")
+# -----------------------------
+# Проверка переменных окружения
+# -----------------------------
+missing = [v for v, val in {
+    "WEEEK_TOKEN": WEEEK_TOKEN,
+    "TELEGRAM_TOKEN": TELEGRAM_TOKEN,
+    "CHAT_ID": CHAT_ID,
+    "WORKSPACE_ID": WORKSPACE_ID
+}.items() if not val]
+
+if missing:
+    raise EnvironmentError(f"Не заданы переменные окружения: {', '.join(missing)}")
+
+# -----------------------------
+# получаем список проектов
+# -----------------------------
+projects = {}
+r = requests.get(PROJECTS_URL, headers=headers, params={"workspaceId": WORKSPACE_ID})
+r.raise_for_status()
+for p in r.json().get("projects", []):
+    projects[p["id"]] = p["title"]
+
+print("PROJECTS LOADED:", len(projects))
+
+# -----------------------------
+# загружаем задачи на сегодня
+# -----------------------------
+def load_tasks(params):
+    offset = 0
+    all_tasks = []
+    while True:
+        params["offset"] = offset
+        r = requests.get(BASE_URL, headers=headers, params=params)
+        r.raise_for_status()
+        data = r.json()
+        tasks = data.get("tasks", [])
+        if not tasks:
+            break
+        all_tasks.extend(tasks)
+        if not data.get("hasMore"):
+            break
+        offset += len(tasks)
+    return all_tasks
+
+print(f"LOADING TASKS FOR DAY: {today}")
+today_tasks_raw = load_tasks({"workspaceId": WORKSPACE_ID, "day": today})
+print(f"TOTAL TODAY TASKS: {len(today_tasks_raw)}")
+
+print("LOADING OVERDUE TASKS")
+overdue_tasks_raw = load_tasks({"workspaceId": WORKSPACE_ID, "overdue": "true"})
+print(f"TOTAL OVERDUE TASKS: {len(overdue_tasks_raw)}")
+
+# -----------------------------
+# фильтруем — только родительские, не завершённые
+# -----------------------------
+today_tasks = [
+    t for t in today_tasks_raw
+    if t.get("parentId") is None and not t.get("isCompleted")
+]
+
+overdue_tasks = [
+    t for t in overdue_tasks_raw
+    if t.get("parentId") is None and not t.get("isCompleted")
+]
+
+print(f"TODAY PARENT TASKS: {len(today_tasks)}")
+print(f"OVERDUE PARENT TASKS: {len(overdue_tasks)}")
+
+# -----------------------------
+# группируем по проектам
+# -----------------------------
+def group_by_project(tasks):
+    grouped = {}
+    for task in tasks:
+        project_id = task.get("projectId")
+        project_name = projects.get(project_id, "Без проекта")
+        if project_name not in grouped:
+            grouped[project_name] = []
+        grouped[project_name].append(task)
+    return grouped
+
+today_grouped = group_by_project(today_tasks)
+overdue_grouped = group_by_project(overdue_tasks)
+
+# -----------------------------
+# формируем сообщение
+# -----------------------------
+message = "Доброе утро!\n\n"
+
+# задачи на сегодня
+message += "📅 Задачи на сегодня\n\n"
+if not today_grouped:
+    message += "Сегодня задач нет 🎉\n"
+else:
+    for project, tasks in today_grouped.items():
+        message += f"📂 {project}\n"
+        for task in tasks:
+            message += f"- {task.get('title', '(без названия)')}\n"
+        message += "\n"
+
+# просроченные задачи
+if overdue_grouped:
+    message += "⚠️ Просроченные задачи\n\n"
+    for project, tasks in overdue_grouped.items():
+        message += f"📂 {project}\n"
+        for task in tasks:
+            due = task.get("dueDate") or task.get("date") or ""
+            message += f"- {task.get('title', '(без названия)')} ({due})\n"
+        message += "\n"
+
+# -----------------------------
+# отправляем в Telegram
+# -----------------------------
+telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+payload = {
+    "chat_id": CHAT_ID,
+    "text": message
+}
+
+response = requests.post(telegram_url, json=payload)
+response.raise_for_status()
+print("TELEGRAM RESPONSE:")
+print(response.text)
