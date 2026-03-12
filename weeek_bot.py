@@ -10,101 +10,65 @@ headers = {
     "Authorization": f"Bearer {WEEEK_TOKEN}"
 }
 
-tasks_url = "https://api.weeek.net/public/v1/tm/tasks"
+tasks_url = "https://api.weeek.net/public/v1/tm/tasks?limit=100"
 projects_url = "https://api.weeek.net/public/v1/tm/projects"
 
 tasks = requests.get(tasks_url, headers=headers).json()["tasks"]
-print("TOTAL TASKS:", len(tasks))
-
-for t in tasks:
-    print(
-        t.get("title"),
-        "| date:", t.get("date"),
-        "| dueDate:", t.get("dueDate"),
-        "| parentId:", t.get("parentId")
-    )
 projects = requests.get(projects_url, headers=headers).json()["projects"]
 
-# карта проектов
 project_map = {p["id"]: p["title"] for p in projects}
 
 today = datetime.today().date()
 
-
-def get_task_date(task):
-
-    if task.get("dueDate"):
-        return datetime.strptime(task["dueDate"], "%Y-%m-%d").date()
-
-    if task.get("date"):
-        return datetime.strptime(task["date"], "%d.%m.%Y").date()
-
-    return None
-
-
-# карта всех задач
-task_map = {t["id"]: t for t in tasks}
-
-projects_tasks = {}
+today_tasks = {}
 
 for task in tasks:
 
-    task_date = get_task_date(task)
+    # берём только основные задачи
+    if task.get("parentId") is not None:
+        continue
 
-    # только задачи на сегодня
+    task_date = None
+
+    if task.get("dueDate"):
+        task_date = datetime.strptime(task["dueDate"], "%Y-%m-%d").date()
+
+    elif task.get("date"):
+        task_date = datetime.strptime(task["date"], "%d.%m.%Y").date()
+
     if task_date != today:
         continue
 
-    parent_id = task.get("parentId")
+    project_id = task.get("projectId")
+    project_name = project_map.get(project_id, "Без проекта")
 
-    if parent_id and parent_id in task_map:
-
-        parent = task_map[parent_id]
-
-        project_id = parent.get("projectId")
-        project_name = project_map.get(project_id, "Без проекта")
-
-        projects_tasks.setdefault(project_name, {}).setdefault(parent["title"], []).append({
-            "title": task["title"],
-            "id": task["id"]
-        })
-
-    else:
-
-        project_id = task.get("projectId")
-        project_name = project_map.get(project_id, "Без проекта")
-
-        projects_tasks.setdefault(project_name, {}).setdefault(task["title"], [])
+    today_tasks.setdefault(project_name, []).append(task)
 
 
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 
 keyboard = []
 
-if not projects_tasks:
+if not today_tasks:
 
     message += "Нет задач"
 
 else:
 
-    for project, parents in projects_tasks.items():
+    for project, tasks_list in today_tasks.items():
 
         message += f"📂 {project}\n"
 
-        for parent, subs in parents.items():
+        for task in tasks_list:
 
-            message += f"• {parent}\n"
+            message += f"• {task['title']}\n"
 
-            for sub in subs:
-
-                message += f"   • {sub['title']}\n"
-
-                keyboard.append([
-                    {
-                        "text": f"Открыть: {sub['title']}",
-                        "url": f"https://app.weeek.net/ws/1/task/{sub['id']}"
-                    }
-                ])
+            keyboard.append([
+                {
+                    "text": f"Открыть: {task['title']}",
+                    "url": f"https://app.weeek.net/ws/1/task/{task['id']}"
+                }
+            ])
 
         message += "\n"
 
@@ -121,5 +85,4 @@ payload = {
 
 response = requests.post(telegram_url, json=payload)
 
-print("Telegram response:")
 print(response.text)
