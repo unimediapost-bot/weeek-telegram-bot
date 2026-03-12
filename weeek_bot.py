@@ -1,6 +1,5 @@
 import os
 import requests
-import json
 from datetime import datetime
 
 WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
@@ -15,7 +14,7 @@ headers = {
     "Authorization": f"Bearer {WEEEK_TOKEN}"
 }
 
-today = datetime.now().strftime("%Y-%m-%d")
+today = datetime.now().strftime("%d.%m.%Y")
 
 # -----------------------------
 # Проверка переменных окружения
@@ -34,31 +33,26 @@ if missing:
 # получаем список проектов
 # -----------------------------
 projects = {}
-r = requests.get(
-    PROJECTS_URL,
-    headers=headers,
-    params={"workspaceId": WORKSPACE_ID}
-)
+r = requests.get(PROJECTS_URL, headers=headers, params={"workspaceId": WORKSPACE_ID})
 r.raise_for_status()
-data = r.json()
-
-for p in data.get("projects", []):
+for p in r.json().get("projects", []):
     projects[p["id"]] = p["title"]
 
 print("PROJECTS LOADED:", len(projects))
 
 # -----------------------------
-# загружаем задачи (только родительские)
+# загружаем задачи на сегодня через параметр day
 # -----------------------------
 offset = 0
 all_tasks = []
-print("START LOADING TASKS")
+print(f"LOADING TASKS FOR DAY: {today}")
 
 while True:
     params = {
         "workspaceId": WORKSPACE_ID,
-        "offset": offset,
-        "parentId": 0  # только корневые задачи
+        "day": today,
+        "completed": False,
+        "offset": offset
     }
     r = requests.get(BASE_URL, headers=headers, params=params)
     r.raise_for_status()
@@ -79,45 +73,10 @@ while True:
 print("TOTAL TASKS LOADED:", len(all_tasks))
 
 # -----------------------------
-# отладка
+# фильтруем — только родительские задачи
 # -----------------------------
-print("\n=== ПЕРВЫЕ 5 ЗАДАЧ (сырые данные) ===")
-for task in all_tasks[:5]:
-    print({
-        "title": task.get("title"),
-        "date": task.get("date"),
-        "dateStart": task.get("dateStart"),
-        "dueDate": task.get("dueDate"),
-        "isCompleted": task.get("isCompleted"),
-        "parentId": task.get("parentId"),
-    })
-print(f"\nСегодня (today): '{today}'")
-print("=====================================\n")
-
-print("\n=== ПОЛНАЯ СТРУКТУРА ПЕРВОЙ ЗАДАЧИ ===")
-if all_tasks:
-    print(json.dumps(all_tasks[0], indent=2, ensure_ascii=False))
-print("=====================================\n")
-
-# -----------------------------
-# фильтрация задач
-# -----------------------------
-today_tasks = []
-for task in all_tasks:
-    # только корневые задачи
-    if task.get("parentId") is not None:
-        continue
-
-    task_date = (
-        task.get("date")
-        or task.get("dateStart")
-        or task.get("dueDate")
-    )
-
-    if task_date and task_date[:10] == today and not task.get("isCompleted"):
-        today_tasks.append(task)
-
-print("TODAY TASKS FOUND:", len(today_tasks))
+today_tasks = [t for t in all_tasks if t.get("parentId") is None]
+print("TODAY PARENT TASKS:", len(today_tasks))
 
 # -----------------------------
 # группируем по проектам
