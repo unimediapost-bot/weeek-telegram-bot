@@ -14,44 +14,37 @@ headers = {
 }
 
 all_tasks = []
-page = 1
+
+limit = 100
+offset = 0
 
 print("START LOADING TASKS")
 
 while True:
 
-    url = f"https://api.weeek.net/public/v1/tm/tasks?workspaceId={WORKSPACE_ID}&page={page}"
+    url = f"https://api.weeek.net/public/v1/tm/tasks?workspaceId={WORKSPACE_ID}&limit={limit}&offset={offset}"
 
-    print(f"\nREQUEST PAGE: {page}")
-    print(url)
+    print("REQUEST:", url)
 
     response = requests.get(url, headers=headers)
     data = response.json()
 
     tasks = data.get("tasks", [])
 
-    print("TASKS ON PAGE:", len(tasks))
+    print("TASKS RECEIVED:", len(tasks))
 
     if not tasks:
         break
 
-    for task in tasks:
-        print(
-            "TASK:",
-            task.get("title"),
-            "| date:",
-            task.get("date"),
-            "| dueDate:",
-            task.get("dueDate"),
-            "| project:",
-            task.get("project", {}).get("name"),
-        )
-
     all_tasks.extend(tasks)
 
-    page += 1
+    if len(tasks) < limit:
+        break
 
-print("\nTOTAL TASKS COLLECTED:", len(all_tasks))
+    offset += limit
+
+
+print("TOTAL TASKS:", len(all_tasks))
 
 today_tasks = []
 
@@ -63,7 +56,7 @@ for task in all_tasks:
     if date == today or due == today:
         today_tasks.append(task)
 
-print("TODAY TASKS FOUND:", len(today_tasks))
+print("TODAY TASKS:", len(today_tasks))
 
 projects = {}
 
@@ -79,7 +72,7 @@ for task in today_tasks:
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 
 if not projects:
-    message += "Сегодня задач нет 🎉"
+    message += "Сегодня задач нет"
 
 for project, tasks in projects.items():
 
@@ -113,5 +106,5 @@ payload = {
 
 response = requests.post(telegram_url, json=payload)
 
-print("\nTELEGRAM RESPONSE:")
+print("TELEGRAM RESPONSE:")
 print(response.text)
