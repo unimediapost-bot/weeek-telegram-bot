@@ -7,6 +7,8 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 WORKSPACE_ID = os.getenv("WORKSPACE_ID")
 
+BASE_URL = "https://api.weeek.net/public/v1/tm/tasks"
+
 headers = {
     "Authorization": f"Bearer {WEEEK_TOKEN}"
 }
@@ -21,27 +23,28 @@ print("START LOADING TASKS")
 
 while True:
 
-    url = f"https://api.weeek.net/public/v1/tm/tasks?workspaceId={WORKSPACE_ID}&limit={limit}&offset={offset}"
+    params = {
+        "workspaceId": WORKSPACE_ID,
+        "limit": limit,
+        "offset": offset
+    }
 
-    response = requests.get(url, headers=headers)
+    response = requests.get(BASE_URL, headers=headers, params=params)
     data = response.json()
 
     tasks = data.get("tasks", [])
 
-    print("TASKS RECEIVED:", len(tasks))
-
-    if not tasks:
-        break
+    print(f"PAGE OFFSET {offset} | TASKS: {len(tasks)}")
 
     all_tasks.extend(tasks)
 
-    if len(tasks) < limit:
+    if not data.get("hasMore"):
         break
 
     offset += limit
 
 
-print("TOTAL TASKS:", len(all_tasks))
+print("TOTAL TASKS LOADED:", len(all_tasks))
 
 today_tasks = []
 
@@ -53,18 +56,20 @@ for task in all_tasks:
     if start == today or end == today:
         today_tasks.append(task)
 
-print("TODAY TASKS:", len(today_tasks))
+print("TODAY TASKS FOUND:", len(today_tasks))
 
+# группируем по проектам
 projects = {}
 
 for task in today_tasks:
 
-    project = task.get("project", {}).get("name", "Без проекта")
+    project_name = f"Проект {task.get('projectId')}"
 
-    if project not in projects:
-        projects[project] = []
+    if project_name not in projects:
+        projects[project_name] = []
 
-    projects[project].append(task)
+    projects[project_name].append(task)
+
 
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 
