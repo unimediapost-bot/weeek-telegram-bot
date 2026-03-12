@@ -6,7 +6,7 @@ WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 WORKSPACE_ID = os.getenv("WORKSPACE_ID")
-BOT_MODE = os.getenv("BOT_MODE", "morning")  # morning или midday
+BOT_MODE = os.getenv("BOT_MODE", "morning")  # morning, midday или evening
 
 BASE_URL = "https://api.weeek.net/public/v1/tm/tasks"
 PROJECTS_URL = "https://api.weeek.net/public/v1/tm/projects"
@@ -141,7 +141,7 @@ if BOT_MODE == "morning":
                 message += f"- {task.get('title', '(без названия)')} ({due})\n"
             message += "\n"
 
-else:  # midday
+elif BOT_MODE == "midday":
     message = "☀️ Промежуточный итог\n\n"
 
     if today_done:
@@ -153,7 +153,7 @@ else:  # midday
             message += "\n"
 
     if today_pending:
-        message += "🔲 Ещё не выполнено\n\n"
+        message += "🔴 Ещё не выполнено\n\n"
         for project, tasks in group_by_project(today_pending).items():
             message += f"📂 {project}\n"
             for task in tasks:
@@ -162,6 +162,28 @@ else:  # midday
 
     if not today_done and not today_pending:
         message += "Задач на сегодня нет 🎉\n"
+
+else:  # evening
+    message = "🌙 Итоги дня\n\n"
+
+    if today_done:
+        message += "✅ Выполнено\n\n"
+        for project, tasks in group_by_project(today_done).items():
+            message += f"📂 {project}\n"
+            for task in tasks:
+                message += f"- {task.get('title', '(без названия)')}\n"
+            message += "\n"
+
+    if today_pending:
+        message += "🔴 Не выполнено\n\n"
+        for project, tasks in group_by_project(today_pending).items():
+            message += f"📂 {project}\n"
+            for task in tasks:
+                message += f"- {task.get('title', '(без названия)')}\n"
+            message += "\n"
+
+    if not today_done and not today_pending:
+        message += "Все задачи выполнены 🎉\n"
 
 # -----------------------------
 # отправляем в Telegram
