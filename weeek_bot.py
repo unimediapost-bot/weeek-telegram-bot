@@ -7,11 +7,12 @@ WORKSPACE_ID = os.getenv("WORKSPACE_ID")
 
 headers = {"Authorization": f"Bearer {WEEEK_TOKEN}"}
 
-for url in [
-    "https://api.weeek.net/public/v1/workspace/members",
-    "https://api.weeek.net/public/v1/workspace/users",
-    "https://api.weeek.net/public/v1/users",
+for url, params in [
+    ("https://api.weeek.net/public/v1/workspace/members", {}),
+    ("https://api.weeek.net/public/v1/workspace/members", {"workspaceId": WORKSPACE_ID}),
+    ("https://api.weeek.net/public/v1/tm/members", {}),
+    ("https://api.weeek.net/public/v1/tm/members", {"workspaceId": WORKSPACE_ID}),
 ]:
-    r = requests.get(url, headers=headers, params={"workspaceId": WORKSPACE_ID})
-    print(f"\n{url} → {r.status_code}")
-    print(r.text[:500])
+    r = requests.get(url, headers=headers, params=params)
+    print(f"\n{url} params={params} → {r.status_code}")
+    print(r.text[:400])
