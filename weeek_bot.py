@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from datetime import datetime
 
@@ -6,7 +7,7 @@ WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 WORKSPACE_ID = os.getenv("WORKSPACE_ID")
-BOT_MODE = os.getenv("BOT_MODE", "morning")  # morning, midday или evening
+BOT_MODE = os.getenv("BOT_MODE", "morning")
 
 BASE_URL = "https://api.weeek.net/public/v1/tm/tasks"
 PROJECTS_URL = "https://api.weeek.net/public/v1/tm/projects"
@@ -47,13 +48,19 @@ print("PROJECTS LOADED:", len(projects))
 # -----------------------------
 # вспомогательные функции
 # -----------------------------
-def load_tasks(params):
+def load_tasks(params, retries=3, delay=5):
     offset = 0
     all_tasks = []
     while True:
         params["offset"] = offset
-        r = requests.get(BASE_URL, headers=headers, params=params)
-        r.raise_for_status()
+        for attempt in range(retries):
+            r = requests.get(BASE_URL, headers=headers, params=params)
+            if r.status_code == 502:
+                print(f"502 error, retry {attempt + 1}/{retries}...")
+                time.sleep(delay)
+                continue
+            r.raise_for_status()
+            break
         data = r.json()
         tasks = data.get("tasks", [])
         if not tasks:
