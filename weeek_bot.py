@@ -141,3 +141,17 @@ response = requests.post(telegram_url, json=payload)
 
 print("TELEGRAM RESPONSE:")
 print(response.text)
+
+# ОТЛАДКА - удалить после проверки
+print("\n=== ПЕРВЫЕ 5 ЗАДАЧ (сырые данные) ===")
+for task in all_tasks[:5]:
+    print({
+        "title": task.get("title"),
+        "date": task.get("date"),
+        "dateStart": task.get("dateStart"),
+        "dueDate": task.get("dueDate"),
+        "isCompleted": task.get("isCompleted"),
+        "parentId": task.get("parentId"),
+    })
+print(f"\nСегодня (today): '{today}'")
+print("=====================================\n")
