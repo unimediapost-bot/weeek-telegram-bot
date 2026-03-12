@@ -44,47 +44,27 @@ while True:
 
     offset += len(tasks)
 
-
 print("TOTAL TASKS LOADED:", len(all_tasks))
-
-print("\n===== DIAGNOSTIC: FIRST 5 TASKS =====\n")
-
-for task in all_tasks[:5]:
-
-    print("TITLE:", task.get("title"))
-    print("date:", task.get("date"))
-    print("dateStart:", task.get("dateStart"))
-    print("dateEnd:", task.get("dateEnd"))
-    print("time:", task.get("time"))
-    print("RAW TASK:")
-    print(task)
-    print("\n----------------------\n")
 
 
 today_tasks = []
 
 for task in all_tasks:
 
-    date = task.get("date")
-    start = task.get("dateStart")
-    end = task.get("dateEnd")
+    # берем только родительские задачи
+    if task.get("parentId"):
+        continue
 
-    if date == today or start == today or end == today:
+    task_date = (
+        task.get("date")
+        or task.get("dateStart")
+        or task.get("dueDate")
+    )
+
+    if task_date == today:
         today_tasks.append(task)
 
 print("TODAY TASKS FOUND:", len(today_tasks))
-
-
-projects = {}
-
-for task in today_tasks:
-
-    project = f"Проект {task.get('projectId')}"
-
-    if project not in projects:
-        projects[project] = []
-
-    projects[project].append(task)
 
 
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
@@ -92,14 +72,8 @@ message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 if not today_tasks:
     message += "Сегодня задач нет 🎉"
 
-for project, tasks in projects.items():
-
-    message += f"📂 {project}\n"
-
-    for task in tasks:
-        message += f"• {task['title']}\n"
-
-    message += "\n"
+for task in today_tasks:
+    message += f"📂 {task['title']}\n"
 
 
 buttons = []
