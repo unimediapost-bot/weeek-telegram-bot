@@ -15,6 +15,7 @@ headers = {
 }
 
 today = datetime.now().strftime("%d.%m.%Y")
+today_dt = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 
 # -----------------------------
 # Проверка переменных окружения
@@ -41,7 +42,7 @@ for p in r.json().get("projects", []):
 print("PROJECTS LOADED:", len(projects))
 
 # -----------------------------
-# загружаем задачи на сегодня
+# вспомогательные функции
 # -----------------------------
 def load_tasks(params):
     offset = 0
@@ -60,13 +61,37 @@ def load_tasks(params):
         offset += len(tasks)
     return all_tasks
 
+def parse_date(date_str):
+    if not date_str:
+        return None
+    try:
+        return datetime.strptime(date_str[:10], "%d.%m.%Y")
+    except:
+        try:
+            return datetime.strptime(date_str[:10], "%Y-%m-%d")
+        except:
+            return None
+
+def group_by_project(tasks):
+    grouped = {}
+    for task in tasks:
+        project_id = task.get("projectId")
+        project_name = projects.get(project_id, "Без проекта")
+        if project_name not in grouped:
+            grouped[project_name] = []
+        grouped[project_name].append(task)
+    return grouped
+
+# -----------------------------
+# загружаем задачи на сегодня
+# -----------------------------
 print(f"LOADING TASKS FOR DAY: {today}")
 today_tasks_raw = load_tasks({"workspaceId": WORKSPACE_ID, "day": today})
 print(f"TOTAL TODAY TASKS: {len(today_tasks_raw)}")
 
 print("LOADING OVERDUE TASKS")
 overdue_tasks_raw = load_tasks({"workspaceId": WORKSPACE_ID, "overdue": "true"})
-print(f"TOTAL OVERDUE TASKS: {len(overdue_tasks_raw)}")
+print(f"TOTAL OVERDUE TASKS RAW: {len(overdue_tasks_raw)}")
 
 # -----------------------------
 # фильтруем — только родительские, не завершённые
@@ -78,7 +103,10 @@ today_tasks = [
 
 overdue_tasks = [
     t for t in overdue_tasks_raw
-    if t.get("parentId") is None and not t.get("isCompleted")
+    if t.get("parentId") is None
+    and not t.get("isCompleted")
+    and parse_date(t.get("dueDate") or t.get("date")) is not None
+    and parse_date(t.get("dueDate") or t.get("date")) < today_dt
 ]
 
 print(f"TODAY PARENT TASKS: {len(today_tasks)}")
@@ -87,16 +115,6 @@ print(f"OVERDUE PARENT TASKS: {len(overdue_tasks)}")
 # -----------------------------
 # группируем по проектам
 # -----------------------------
-def group_by_project(tasks):
-    grouped = {}
-    for task in tasks:
-        project_id = task.get("projectId")
-        project_name = projects.get(project_id, "Без проекта")
-        if project_name not in grouped:
-            grouped[project_name] = []
-        grouped[project_name].append(task)
-    return grouped
-
 today_grouped = group_by_project(today_tasks)
 overdue_grouped = group_by_project(overdue_tasks)
 
