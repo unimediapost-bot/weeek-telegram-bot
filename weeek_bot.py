@@ -4,7 +4,7 @@ import os
 
 WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("5274619421")
+CHAT_ID = os.getenv("CHAT_ID")
 
 url = "https://api.weeek.net/public/v1/tm/tasks"
 
