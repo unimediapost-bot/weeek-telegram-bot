@@ -148,3 +148,12 @@ response = requests.post(telegram_url, json=payload)
 response.raise_for_status()
 print("TELEGRAM RESPONSE:")
 print(response.text)
+
+# -----------------------------
+# отладка — удалить после проверки
+# -----------------------------
+print("\n=== ПОЛНАЯ СТРУКТУРА ПЕРВОЙ ЗАДАЧИ ===")
+if all_tasks:
+    import json
+    print(json.dumps(all_tasks[0], indent=2, ensure_ascii=False))
+print("=====================================\n")
