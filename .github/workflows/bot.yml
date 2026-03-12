@@ -1,12 +1,13 @@
 name: WEEEK Telegram Bot
 on:
   schedule:
-    - cron: '0 6 * * *'   # утреннее сообщение
-    - cron: '0 12 * * *'  # дневное сообщение
+    - cron: '0 6 * * *'   # утро
+    - cron: '0 12 * * *'  # день
+    - cron: '0 16 * * *'  # вечер
   workflow_dispatch:
     inputs:
       mode:
-        description: 'morning or midday'
+        description: 'morning, midday or evening'
         default: 'morning'
 
 jobs:
@@ -25,4 +26,4 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
-          BOT_MODE: ${{ github.event.schedule == '0 12 * * *' && 'midday' || github.event.inputs.mode || 'morning' }}
+          BOT_MODE: ${{ github.event.schedule == '0 12 * * *' && 'midday' || github.event.schedule == '0 16 * * *' && 'evening' || github.event.inputs.mode || 'morning' }}
