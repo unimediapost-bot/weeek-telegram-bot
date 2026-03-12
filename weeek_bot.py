@@ -23,8 +23,6 @@ while True:
 
     url = f"https://api.weeek.net/public/v1/tm/tasks?workspaceId={WORKSPACE_ID}&limit={limit}&offset={offset}"
 
-    print("REQUEST:", url)
-
     response = requests.get(url, headers=headers)
     data = response.json()
 
@@ -49,14 +47,10 @@ today_tasks = []
 
 for task in all_tasks:
 
-    date = task.get("date")
-    due = task.get("dueDate")
+    start = task.get("dateStart")
+    end = task.get("dateEnd")
 
-    if date and date[:10] == today:
-        today_tasks.append(task)
-        continue
-
-    if due and due[:10] == today:
+    if start == today or end == today:
         today_tasks.append(task)
 
 print("TODAY TASKS:", len(today_tasks))
@@ -86,6 +80,7 @@ for project, tasks in projects.items():
 
     message += "\n"
 
+
 buttons = []
 
 for task in today_tasks:
@@ -96,6 +91,7 @@ for task in today_tasks:
             "url": f"https://app.weeek.net/ws/{WORKSPACE_ID}/task/{task['id']}"
         }
     ])
+
 
 telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
