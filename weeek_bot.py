@@ -15,7 +15,6 @@ headers = {
 
 today = datetime.now().strftime("%Y-%m-%d")
 
-limit = 100
 offset = 0
 all_tasks = []
 
@@ -25,7 +24,6 @@ while True:
 
     params = {
         "workspaceId": WORKSPACE_ID,
-        "limit": limit,
         "offset": offset
     }
 
@@ -34,14 +32,17 @@ while True:
 
     tasks = data.get("tasks", [])
 
-    print(f"PAGE OFFSET {offset} | TASKS: {len(tasks)}")
+    print(f"OFFSET {offset} | TASKS: {len(tasks)}")
+
+    if not tasks:
+        break
 
     all_tasks.extend(tasks)
 
     if not data.get("hasMore"):
         break
 
-    offset += limit
+    offset += len(tasks)
 
 
 print("TOTAL TASKS LOADED:", len(all_tasks))
@@ -58,17 +59,17 @@ for task in all_tasks:
 
 print("TODAY TASKS FOUND:", len(today_tasks))
 
-# группируем по проектам
+
 projects = {}
 
 for task in today_tasks:
 
-    project_name = f"Проект {task.get('projectId')}"
+    project = f"Проект {task.get('projectId')}"
 
-    if project_name not in projects:
-        projects[project_name] = []
+    if project not in projects:
+        projects[project] = []
 
-    projects[project_name].append(task)
+    projects[project].append(task)
 
 
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
