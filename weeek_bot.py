@@ -9,6 +9,7 @@ WORKSPACE_ID = os.getenv("WORKSPACE_ID")
 
 BASE_URL = "https://api.weeek.net/public/v1/tm/tasks"
 PROJECTS_URL = "https://api.weeek.net/public/v1/tm/projects"
+MEMBERS_URL = "https://api.weeek.net/public/v1/workspace/members"
 
 headers = {
     "Authorization": f"Bearer {WEEEK_TOKEN}"
@@ -42,6 +43,17 @@ for p in r.json().get("projects", []):
 print("PROJECTS LOADED:", len(projects))
 
 # -----------------------------
+# получаем список участников
+# -----------------------------
+members = {}
+r = requests.get(MEMBERS_URL, headers=headers, params={"workspaceId": WORKSPACE_ID})
+if r.status_code == 200:
+    for m in r.json().get("members", []):
+        full_name = f"{m.get('firstName', '')} {m.get('lastName', '')}".strip()
+        members[str(m["id"])] = full_name
+print("MEMBERS LOADED:", len(members))
+
+# -----------------------------
 # вспомогательные функции
 # -----------------------------
 def load_tasks(params):
@@ -71,6 +83,13 @@ def parse_date(date_str):
             return datetime.strptime(date_str[:10], "%Y-%m-%d")
         except:
             return None
+
+def get_assignee(task):
+    assignees = task.get("assignees", [])
+    if not assignees:
+        return None
+    names = [members.get(str(a), str(a)) for a in assignees]
+    return ", ".join(n for n in names if n)
 
 def group_by_project(tasks):
     grouped = {}
@@ -124,14 +143,19 @@ overdue_grouped = group_by_project(overdue_tasks)
 message = "Доброе утро!\n\n"
 
 # задачи на сегодня
-message += "📅 Задачи на сегодня\n\n"
+message += f"📅 Задачи на сегодня {today}\n\n"
 if not today_grouped:
     message += "Сегодня задач нет 🎉\n"
 else:
     for project, tasks in today_grouped.items():
         message += f"📂 {project}\n"
         for task in tasks:
-            message += f"- {task.get('title', '(без названия)')}\n"
+            title = task.get("title", "(без названия)")
+            assignee = get_assignee(task)
+            if assignee:
+                message += f"- {title} (Исполнитель: {assignee})\n"
+            else:
+                message += f"- {title}\n"
         message += "\n"
 
 # просроченные задачи
@@ -140,8 +164,13 @@ if overdue_grouped:
     for project, tasks in overdue_grouped.items():
         message += f"📂 {project}\n"
         for task in tasks:
+            title = task.get("title", "(без названия)")
             due = task.get("dueDate") or task.get("date") or ""
-            message += f"- {task.get('title', '(без названия)')} ({due})\n"
+            assignee = get_assignee(task)
+            if assignee:
+                message += f"- {title} ({due}) (Исполнитель: {assignee})\n"
+            else:
+                message += f"- {title} ({due})\n"
         message += "\n"
 
 # -----------------------------
