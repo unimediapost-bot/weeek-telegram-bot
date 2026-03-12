@@ -13,8 +13,9 @@ headers = {
 # ---------- загрузка задач ----------
 
 tasks = []
+seen_ids = set()
 
-for page in range(1, 10):   # максимум 10 страниц
+for page in range(1, 6):
 
     url = f"https://api.weeek.net/public/v1/tm/tasks?page={page}&limit=100"
 
@@ -22,7 +23,11 @@ for page in range(1, 10):   # максимум 10 страниц
 
     page_tasks = response.get("tasks", [])
 
-    tasks.extend(page_tasks)
+    for task in page_tasks:
+
+        if task["id"] not in seen_ids:
+            tasks.append(task)
+            seen_ids.add(task["id"])
 
 print("TOTAL TASKS:", len(tasks))
 
@@ -34,26 +39,27 @@ projects = requests.get(projects_url, headers=headers).json()["projects"]
 
 project_map = {p["id"]: p["title"] for p in projects}
 
-# ---------- фильтрация ----------
+# ---------- подготовка дат ----------
 
 today = datetime.today().date()
+
+today_iso = today.strftime("%Y-%m-%d")
+today_ru = today.strftime("%d.%m.%Y")
+
+# ---------- фильтрация задач ----------
 
 today_tasks = {}
 
 for task in tasks:
 
+    # игнорируем подзадачи
     if task.get("parentId") is not None:
         continue
 
-    task_date = None
+    due = str(task.get("dueDate", ""))[:10]
+    date = str(task.get("date", ""))
 
-    if task.get("dueDate"):
-        task_date = datetime.strptime(task["dueDate"], "%Y-%m-%d").date()
-
-    elif task.get("date"):
-        task_date = datetime.strptime(task["date"], "%d.%m.%Y").date()
-
-    if task_date != today:
+    if due != today_iso and date != today_ru:
         continue
 
     project_id = task.get("projectId")
@@ -61,14 +67,15 @@ for task in tasks:
 
     today_tasks.setdefault(project_name, []).append(task)
 
-# ---------- сообщение ----------
+# ---------- формирование сообщения ----------
 
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 
 keyboard = []
 
 if not today_tasks:
-    message += "Нет задач"
+
+    message += "Сегодня задач нет"
 
 else:
 
@@ -82,14 +89,14 @@ else:
 
             keyboard.append([
                 {
-                    "text": f"Открыть задачу",
+                    "text": "Открыть задачу",
                     "url": f"https://app.weeek.net/ws/1/task/{task['id']}"
                 }
             ])
 
         message += "\n"
 
-# ---------- отправка ----------
+# ---------- отправка в Telegram ----------
 
 telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
@@ -103,4 +110,5 @@ payload = {
 
 response = requests.post(telegram_url, json=payload)
 
+print("Telegram response:")
 print(response.text)
