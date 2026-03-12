@@ -14,6 +14,15 @@ tasks_url = "https://api.weeek.net/public/v1/tm/tasks"
 projects_url = "https://api.weeek.net/public/v1/tm/projects"
 
 tasks = requests.get(tasks_url, headers=headers).json()["tasks"]
+print("TOTAL TASKS:", len(tasks))
+
+for t in tasks:
+    print(
+        t.get("title"),
+        "| date:", t.get("date"),
+        "| dueDate:", t.get("dueDate"),
+        "| parentId:", t.get("parentId")
+    )
 projects = requests.get(projects_url, headers=headers).json()["projects"]
 
 # карта проектов
