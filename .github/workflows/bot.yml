@@ -1,9 +1,9 @@
 name: WEEEK Telegram Bot
 on:
   schedule:
-    - cron: '0 6 * * *'   # утро
-    - cron: '0 12 * * *'  # день
-    - cron: '0 16 * * *'  # вечер
+    - cron: '0 6 * * *'
+    - cron: '0 12 * * *'
+    - cron: '0 16 * * *'
   workflow_dispatch:
     inputs:
       mode:
@@ -19,6 +19,20 @@ jobs:
         with:
           python-version: '3.10'
       - run: pip install requests
+
+      - name: Set BOT_MODE
+        id: set_mode
+        run: |
+          if [ "${{ github.event.schedule }}" = "0 6 * * *" ]; then
+            echo "BOT_MODE=morning" >> $GITHUB_ENV
+          elif [ "${{ github.event.schedule }}" = "0 12 * * *" ]; then
+            echo "BOT_MODE=midday" >> $GITHUB_ENV
+          elif [ "${{ github.event.schedule }}" = "0 16 * * *" ]; then
+            echo "BOT_MODE=evening" >> $GITHUB_ENV
+          else
+            echo "BOT_MODE=${{ github.event.inputs.mode || 'morning' }}" >> $GITHUB_ENV
+          fi
+
       - name: Run bot
         run: python weeek_bot.py
         env:
@@ -26,4 +40,4 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
-          BOT_MODE: ${{ github.event.schedule == '0 12 * * *' && 'midday' || github.event.schedule == '0 16 * * *' && 'evening' || github.event.inputs.mode || 'morning' }}
+          BOT_MODE: ${{ env.BOT_MODE }}
