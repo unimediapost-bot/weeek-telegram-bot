@@ -6,13 +6,19 @@ WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
 WORKSPACE_ID = os.getenv("WORKSPACE_ID")
 
 headers = {"Authorization": f"Bearer {WEEEK_TOKEN}"}
+today = "12.03.2026"
 
-for url, params in [
-    ("https://api.weeek.net/public/v1/workspace/members", {}),
-    ("https://api.weeek.net/public/v1/workspace/members", {"workspaceId": WORKSPACE_ID}),
-    ("https://api.weeek.net/public/v1/tm/members", {}),
-    ("https://api.weeek.net/public/v1/tm/members", {"workspaceId": WORKSPACE_ID}),
-]:
-    r = requests.get(url, headers=headers, params=params)
-    print(f"\n{url} params={params} → {r.status_code}")
-    print(r.text[:400])
+r = requests.get(
+    "https://api.weeek.net/public/v1/tm/tasks",
+    headers=headers,
+    params={"workspaceId": WORKSPACE_ID, "day": today, "offset": 0}
+)
+
+tasks = r.json().get("tasks", [])
+for t in tasks:
+    if t.get("assignees"):
+        print(json.dumps({
+            "title": t.get("title"),
+            "assignees": t.get("assignees"),
+            "userId": t.get("userId"),
+        }, indent=2, ensure_ascii=False))
