@@ -16,46 +16,90 @@ projects_url = "https://api.weeek.net/public/v1/tm/projects"
 tasks = requests.get(tasks_url, headers=headers).json()["tasks"]
 projects = requests.get(projects_url, headers=headers).json()["projects"]
 
-# карта проектов
 project_map = {p["id"]: p["title"] for p in projects}
 
-# группировка задач
+today = datetime.today().date()
+
+# функция получения даты задачи
+def get_task_date(task):
+
+    if task.get("dueDate"):
+        return datetime.strptime(task["dueDate"], "%Y-%m-%d").date()
+
+    if task.get("date"):
+        return datetime.strptime(task["date"], "%d.%m.%Y").date()
+
+    return None
+
+
+# структура parent -> children
+children = {}
+
+for t in tasks:
+
+    parent = t.get("parentId")
+
+    if parent:
+        children.setdefault(parent, []).append(t)
+
+
 projects_tasks = {}
 
 for task in tasks:
 
-    project_id = task.get("projectId")
-    title = task.get("title")
-    task_id = task.get("id")
+    # только родительские задачи
+    if task.get("parentId"):
+        continue
 
+    task_date = get_task_date(task)
+
+    if task_date != today:
+        continue
+
+    project_id = task.get("projectId")
     project_name = project_map.get(project_id, "Без проекта")
 
-    projects_tasks.setdefault(project_name, []).append({
-        "title": title,
-        "id": task_id
-    })
+    projects_tasks.setdefault(project_name, []).append(task)
 
 
-message = "Доброе утро!\n\n"
+message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 
 keyboard = []
 
-for project, items in projects_tasks.items():
+if not projects_tasks:
+    message += "Нет задач"
 
-    message += f"📂 {project}\n"
+else:
 
-    for t in items:
+    for project, parent_tasks in projects_tasks.items():
 
-        message += f"• {t['title']}\n"
+        message += f"📂 {project}\n"
 
-        keyboard.append([
-            {
-                "text": f"Открыть: {t['title']}",
-                "url": f"https://app.weeek.net/ws/1/task/{t['id']}"
-            }
-        ])
+        for parent in parent_tasks:
 
-    message += "\n"
+            message += f"• {parent['title']}\n"
+
+            keyboard.append([
+                {
+                    "text": f"Открыть: {parent['title']}",
+                    "url": f"https://app.weeek.net/ws/1/task/{parent['id']}"
+                }
+            ])
+
+            if parent["id"] in children:
+
+                for sub in children[parent["id"]]:
+
+                    message += f"   • {sub['title']}\n"
+
+                    keyboard.append([
+                        {
+                            "text": f"Открыть: {sub['title']}",
+                            "url": f"https://app.weeek.net/ws/1/task/{sub['id']}"
+                        }
+                    ])
+
+        message += "\n"
 
 
 telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
