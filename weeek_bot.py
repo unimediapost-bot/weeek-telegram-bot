@@ -1,5 +1,6 @@
 import os
 import requests
+import json
 from datetime import datetime
 
 WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
@@ -47,7 +48,7 @@ for p in data.get("projects", []):
 print("PROJECTS LOADED:", len(projects))
 
 # -----------------------------
-# загружаем задачи
+# загружаем задачи (только родительские)
 # -----------------------------
 offset = 0
 all_tasks = []
@@ -57,7 +58,7 @@ while True:
     params = {
         "workspaceId": WORKSPACE_ID,
         "offset": offset,
-        "isParent": True  # только родительские задачи
+        "parentId": 0  # только корневые задачи
     }
     r = requests.get(BASE_URL, headers=headers, params=params)
     r.raise_for_status()
@@ -78,7 +79,7 @@ while True:
 print("TOTAL TASKS LOADED:", len(all_tasks))
 
 # -----------------------------
-# отладка — удалить после проверки
+# отладка
 # -----------------------------
 print("\n=== ПЕРВЫЕ 5 ЗАДАЧ (сырые данные) ===")
 for task in all_tasks[:5]:
@@ -93,11 +94,20 @@ for task in all_tasks[:5]:
 print(f"\nСегодня (today): '{today}'")
 print("=====================================\n")
 
+print("\n=== ПОЛНАЯ СТРУКТУРА ПЕРВОЙ ЗАДАЧИ ===")
+if all_tasks:
+    print(json.dumps(all_tasks[0], indent=2, ensure_ascii=False))
+print("=====================================\n")
+
 # -----------------------------
 # фильтрация задач
 # -----------------------------
 today_tasks = []
 for task in all_tasks:
+    # только корневые задачи
+    if task.get("parentId") is not None:
+        continue
+
     task_date = (
         task.get("date")
         or task.get("dateStart")
@@ -148,12 +158,3 @@ response = requests.post(telegram_url, json=payload)
 response.raise_for_status()
 print("TELEGRAM RESPONSE:")
 print(response.text)
-
-# -----------------------------
-# отладка — удалить после проверки
-# -----------------------------
-print("\n=== ПОЛНАЯ СТРУКТУРА ПЕРВОЙ ЗАДАЧИ ===")
-if all_tasks:
-    import json
-    print(json.dumps(all_tasks[0], indent=2, ensure_ascii=False))
-print("=====================================\n")
