@@ -13,11 +13,9 @@ headers = {
 }
 
 response = requests.get(url, headers=headers)
-
 data = response.json()
 
-# проверяем структуру ответа
-if "data" not in data:
+if "tasks" not in data:
     print("Ошибка API WEEEK")
     print(data)
     exit()
@@ -27,7 +25,7 @@ today = date.today().isoformat()
 today_tasks = []
 overdue_tasks = []
 
-for task in data["data"]:
+for task in data["tasks"]:
 
     title = task.get("title", "Без названия")
     due = task.get("dueDate")
@@ -54,7 +52,7 @@ if overdue_tasks:
     for t in overdue_tasks:
         message += f"• {t}\n"
 else:
-    message += "Нет\n"
+    message += "Нет"
 
 telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
@@ -63,6 +61,4 @@ payload = {
     "text": message
 }
 
-response = requests.post(telegram_url, json=payload)
-
-print(response.text)
+requests.post(telegram_url, json=payload)
