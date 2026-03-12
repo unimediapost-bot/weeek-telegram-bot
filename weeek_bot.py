@@ -63,4 +63,6 @@ payload = {
     "text": message
 }
 
-requests.post(telegram_url, json=payload)
+response = requests.post(telegram_url, json=payload)
+
+print(response.text)
