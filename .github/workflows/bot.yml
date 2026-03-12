@@ -1,23 +1,23 @@
 name: WEEEK Telegram Bot
-
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 6 * * *'   # утреннее сообщение
+    - cron: '0 12 * * *'  # дневное сообщение
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'morning or midday'
+        default: 'morning'
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-
       - run: pip install requests
-
       - name: Run bot
         run: python weeek_bot.py
         env:
@@ -25,3 +25,4 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
           WORKSPACE_ID: ${{ secrets.WORKSPACE_ID }}
+          BOT_MODE: ${{ github.event.schedule == '0 12 * * *' && 'midday' || github.event.inputs.mode || 'morning' }}
