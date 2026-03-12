@@ -10,12 +10,11 @@ headers = {
     "Authorization": f"Bearer {WEEEK_TOKEN}"
 }
 
-# ---------- загрузка всех задач ----------
+# ---------- загрузка задач ----------
 
 tasks = []
-page = 1
 
-while True:
+for page in range(1, 10):   # максимум 10 страниц
 
     url = f"https://api.weeek.net/public/v1/tm/tasks?page={page}&limit=100"
 
@@ -23,12 +22,7 @@ while True:
 
     page_tasks = response.get("tasks", [])
 
-    if not page_tasks:
-        break
-
     tasks.extend(page_tasks)
-
-    page += 1
 
 print("TOTAL TASKS:", len(tasks))
 
@@ -40,7 +34,7 @@ projects = requests.get(projects_url, headers=headers).json()["projects"]
 
 project_map = {p["id"]: p["title"] for p in projects}
 
-# ---------- фильтрация задач ----------
+# ---------- фильтрация ----------
 
 today = datetime.today().date()
 
@@ -48,7 +42,6 @@ today_tasks = {}
 
 for task in tasks:
 
-    # пропускаем подзадачи
     if task.get("parentId") is not None:
         continue
 
@@ -68,14 +61,13 @@ for task in tasks:
 
     today_tasks.setdefault(project_name, []).append(task)
 
-# ---------- формирование сообщения ----------
+# ---------- сообщение ----------
 
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 
 keyboard = []
 
 if not today_tasks:
-
     message += "Нет задач"
 
 else:
@@ -90,14 +82,14 @@ else:
 
             keyboard.append([
                 {
-                    "text": f"Открыть: {task['title']}",
+                    "text": f"Открыть задачу",
                     "url": f"https://app.weeek.net/ws/1/task/{task['id']}"
                 }
             ])
 
         message += "\n"
 
-# ---------- отправка в Telegram ----------
+# ---------- отправка ----------
 
 telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
@@ -111,5 +103,4 @@ payload = {
 
 response = requests.post(telegram_url, json=payload)
 
-print("Telegram response:")
 print(response.text)
