@@ -6,6 +6,7 @@ WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 WORKSPACE_ID = os.getenv("WORKSPACE_ID")
+BOT_MODE = os.getenv("BOT_MODE", "morning")  # morning или midday
 
 BASE_URL = "https://api.weeek.net/public/v1/tm/tasks"
 PROJECTS_URL = "https://api.weeek.net/public/v1/tm/projects"
@@ -29,6 +30,8 @@ missing = [v for v, val in {
 
 if missing:
     raise EnvironmentError(f"Не заданы переменные окружения: {', '.join(missing)}")
+
+print(f"BOT_MODE: {BOT_MODE}")
 
 # -----------------------------
 # получаем список проектов
@@ -87,19 +90,20 @@ def group_by_project(tasks):
 # -----------------------------
 print(f"LOADING TASKS FOR DAY: {today}")
 today_tasks_raw = load_tasks({"workspaceId": WORKSPACE_ID, "day": today})
-print(f"TOTAL TODAY TASKS: {len(today_tasks_raw)}")
 
 print("LOADING OVERDUE TASKS")
 overdue_tasks_raw = load_tasks({"workspaceId": WORKSPACE_ID, "overdue": "true"})
-print(f"TOTAL OVERDUE TASKS RAW: {len(overdue_tasks_raw)}")
 
 # -----------------------------
-# фильтруем — только родительские, не завершённые
+# фильтруем родительские задачи
 # -----------------------------
-today_tasks = [
+today_all = [
     t for t in today_tasks_raw
-    if t.get("parentId") is None and not t.get("isCompleted")
+    if t.get("parentId") is None
 ]
+
+today_done = [t for t in today_all if t.get("isCompleted")]
+today_pending = [t for t in today_all if not t.get("isCompleted")]
 
 overdue_tasks = [
     t for t in overdue_tasks_raw
@@ -109,41 +113,55 @@ overdue_tasks = [
     and parse_date(t.get("dueDate") or t.get("date")) < today_dt
 ]
 
-print(f"TODAY PARENT TASKS: {len(today_tasks)}")
-print(f"OVERDUE PARENT TASKS: {len(overdue_tasks)}")
-
-# -----------------------------
-# группируем по проектам
-# -----------------------------
-today_grouped = group_by_project(today_tasks)
-overdue_grouped = group_by_project(overdue_tasks)
+print(f"TODAY PENDING: {len(today_pending)} | DONE: {len(today_done)} | OVERDUE: {len(overdue_tasks)}")
 
 # -----------------------------
 # формируем сообщение
 # -----------------------------
-message = "Доброе утро!\n\n"
+if BOT_MODE == "morning":
+    message = "Доброе утро!\n\n"
+    message += f"📅 Задачи на сегодня {today}\n\n"
 
-# задачи на сегодня
-message += f"📅 Задачи на сегодня {today}\n\n"
-if not today_grouped:
-    message += "Сегодня задач нет 🎉\n"
-else:
-    for project, tasks in today_grouped.items():
-        message += f"📂 {project}\n"
-        for task in tasks:
-            message += f"- {task.get('title', '(без названия)')}\n"
-        message += "\n"
+    grouped = group_by_project(today_pending)
+    if not grouped:
+        message += "Сегодня задач нет 🎉\n"
+    else:
+        for project, tasks in grouped.items():
+            message += f"📂 {project}\n"
+            for task in tasks:
+                message += f"- {task.get('title', '(без названия)')}\n"
+            message += "\n"
 
-# просроченные задачи
-if overdue_grouped:
-    message += "⚠️ Просроченные задачи\n\n"
-    for project, tasks in overdue_grouped.items():
-        message += f"📂 {project}\n"
-        for task in tasks:
-            title = task.get("title", "(без названия)")
-            due = task.get("dueDate") or task.get("date") or ""
-            message += f"- {title} ({due})\n"
-        message += "\n"
+    if overdue_tasks:
+        message += "⚠️ Просроченные задачи\n\n"
+        for project, tasks in group_by_project(overdue_tasks).items():
+            message += f"📂 {project}\n"
+            for task in tasks:
+                due = task.get("dueDate") or task.get("date") or ""
+                message += f"- {task.get('title', '(без названия)')} ({due})\n"
+            message += "\n"
+
+else:  # midday
+    message = "☀️ Промежуточный итог\n\n"
+
+    if today_done:
+        message += "✅ Выполнено\n\n"
+        for project, tasks in group_by_project(today_done).items():
+            message += f"📂 {project}\n"
+            for task in tasks:
+                message += f"- {task.get('title', '(без названия)')}\n"
+            message += "\n"
+
+    if today_pending:
+        message += "🔲 Ещё не выполнено\n\n"
+        for project, tasks in group_by_project(today_pending).items():
+            message += f"📂 {project}\n"
+            for task in tasks:
+                message += f"- {task.get('title', '(без названия)')}\n"
+            message += "\n"
+
+    if not today_done and not today_pending:
+        message += "Задач на сегодня нет 🎉\n"
 
 # -----------------------------
 # отправляем в Telegram
