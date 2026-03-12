@@ -47,14 +47,29 @@ while True:
 
 print("TOTAL TASKS LOADED:", len(all_tasks))
 
+print("\n===== DIAGNOSTIC: FIRST 5 TASKS =====\n")
+
+for task in all_tasks[:5]:
+
+    print("TITLE:", task.get("title"))
+    print("date:", task.get("date"))
+    print("dateStart:", task.get("dateStart"))
+    print("dateEnd:", task.get("dateEnd"))
+    print("time:", task.get("time"))
+    print("RAW TASK:")
+    print(task)
+    print("\n----------------------\n")
+
+
 today_tasks = []
 
 for task in all_tasks:
 
+    date = task.get("date")
     start = task.get("dateStart")
     end = task.get("dateEnd")
 
-    if start == today or end == today:
+    if date == today or start == today or end == today:
         today_tasks.append(task)
 
 print("TODAY TASKS FOUND:", len(today_tasks))
