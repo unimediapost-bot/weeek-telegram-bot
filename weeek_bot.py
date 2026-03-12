@@ -13,7 +13,14 @@ headers = {
 }
 
 response = requests.get(url, headers=headers)
+
 data = response.json()
+
+# проверяем структуру ответа
+if "data" not in data:
+    print("Ошибка API WEEEK")
+    print(data)
+    exit()
 
 today = date.today().isoformat()
 
@@ -22,7 +29,7 @@ overdue_tasks = []
 
 for task in data["data"]:
 
-    title = task["title"]
+    title = task.get("title", "Без названия")
     due = task.get("dueDate")
 
     if due == today:
