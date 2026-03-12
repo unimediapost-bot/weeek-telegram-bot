@@ -2,8 +2,8 @@ import requests
 from datetime import date
 import os
 
-WEEEK_TOKEN = os.getenv("4e29aac5-2402-470e-be1d-d6d43429c4f5")
-TELEGRAM_TOKEN = os.getenv("8209309373:AAFyzlm13TrY9k964CKu4kVA4Vcksh6_ALQ")
+WEEEK_TOKEN = os.getenv("WEEEK_TOKEN")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("5274619421")
 
 url = "https://api.weeek.net/public/v1/tm/tasks"
