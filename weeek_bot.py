@@ -16,11 +16,12 @@ projects_url = "https://api.weeek.net/public/v1/tm/projects"
 tasks = requests.get(tasks_url, headers=headers).json()["tasks"]
 projects = requests.get(projects_url, headers=headers).json()["projects"]
 
+# карта проектов
 project_map = {p["id"]: p["title"] for p in projects}
 
 today = datetime.today().date()
 
-# функция получения даты задачи
+
 def get_task_date(task):
 
     if task.get("dueDate"):
@@ -32,34 +33,39 @@ def get_task_date(task):
     return None
 
 
-# структура parent -> children
-children = {}
-
-for t in tasks:
-
-    parent = t.get("parentId")
-
-    if parent:
-        children.setdefault(parent, []).append(t)
-
+# карта всех задач
+task_map = {t["id"]: t for t in tasks}
 
 projects_tasks = {}
 
 for task in tasks:
 
-    # только родительские задачи
-    if task.get("parentId"):
-        continue
-
     task_date = get_task_date(task)
 
+    # только задачи на сегодня
     if task_date != today:
         continue
 
-    project_id = task.get("projectId")
-    project_name = project_map.get(project_id, "Без проекта")
+    parent_id = task.get("parentId")
 
-    projects_tasks.setdefault(project_name, []).append(task)
+    if parent_id and parent_id in task_map:
+
+        parent = task_map[parent_id]
+
+        project_id = parent.get("projectId")
+        project_name = project_map.get(project_id, "Без проекта")
+
+        projects_tasks.setdefault(project_name, {}).setdefault(parent["title"], []).append({
+            "title": task["title"],
+            "id": task["id"]
+        })
+
+    else:
+
+        project_id = task.get("projectId")
+        project_name = project_map.get(project_id, "Без проекта")
+
+        projects_tasks.setdefault(project_name, {}).setdefault(task["title"], [])
 
 
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
@@ -67,37 +73,29 @@ message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 keyboard = []
 
 if not projects_tasks:
+
     message += "Нет задач"
 
 else:
 
-    for project, parent_tasks in projects_tasks.items():
+    for project, parents in projects_tasks.items():
 
         message += f"📂 {project}\n"
 
-        for parent in parent_tasks:
+        for parent, subs in parents.items():
 
-            message += f"• {parent['title']}\n"
+            message += f"• {parent}\n"
 
-            keyboard.append([
-                {
-                    "text": f"Открыть: {parent['title']}",
-                    "url": f"https://app.weeek.net/ws/1/task/{parent['id']}"
-                }
-            ])
+            for sub in subs:
 
-            if parent["id"] in children:
+                message += f"   • {sub['title']}\n"
 
-                for sub in children[parent["id"]]:
-
-                    message += f"   • {sub['title']}\n"
-
-                    keyboard.append([
-                        {
-                            "text": f"Открыть: {sub['title']}",
-                            "url": f"https://app.weeek.net/ws/1/task/{sub['id']}"
-                        }
-                    ])
+                keyboard.append([
+                    {
+                        "text": f"Открыть: {sub['title']}",
+                        "url": f"https://app.weeek.net/ws/1/task/{sub['id']}"
+                    }
+                ])
 
         message += "\n"
 
@@ -114,4 +112,5 @@ payload = {
 
 response = requests.post(telegram_url, json=payload)
 
+print("Telegram response:")
 print(response.text)
