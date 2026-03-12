@@ -14,11 +14,11 @@ headers = {
     "Authorization": f"Bearer {WEEEK_TOKEN}"
 }
 
-today = datetime.now().strftime("%Y-%m-%d")
+today = datetime.now().strftime("%d.%m.%Y")
 
-# -----------------------------
-# получаем список проектов
-# -----------------------------
+# -------------------------
+# загрузка проектов
+# -------------------------
 
 projects = {}
 
@@ -35,10 +35,9 @@ for p in data.get("projects", []):
 
 print("PROJECTS LOADED:", len(projects))
 
-
-# -----------------------------
-# загружаем задачи
-# -----------------------------
+# -------------------------
+# загрузка задач
+# -------------------------
 
 offset = 0
 all_tasks = []
@@ -71,10 +70,9 @@ while True:
 
 print("TOTAL TASKS LOADED:", len(all_tasks))
 
-
-# -----------------------------
+# -------------------------
 # фильтрация задач
-# -----------------------------
+# -------------------------
 
 today_tasks = []
 
@@ -84,21 +82,18 @@ for task in all_tasks:
     if task.get("parentId"):
         continue
 
-    task_date = (
-        task.get("date")
-        or task.get("dateStart")
-        or task.get("dueDate")
-    )
+    workloads = task.get("workloads", [])
 
-    if task_date == today and not task.get("isCompleted"):
-        today_tasks.append(task)
+    for w in workloads:
+        if w.get("date") == today:
+            today_tasks.append(task)
+            break
 
 print("TODAY TASKS FOUND:", len(today_tasks))
 
-
-# -----------------------------
-# группируем по проектам
-# -----------------------------
+# -------------------------
+# группировка по проектам
+# -------------------------
 
 grouped = {}
 
@@ -113,10 +108,9 @@ for task in today_tasks:
 
     grouped[project_name].append(task)
 
-
-# -----------------------------
-# формируем сообщение
-# -----------------------------
+# -------------------------
+# сообщение
+# -------------------------
 
 message = "Доброе утро!\n\n📅 Задачи на сегодня\n\n"
 
@@ -132,10 +126,9 @@ for project, tasks in grouped.items():
 
     message += "\n"
 
-
-# -----------------------------
-# отправляем в Telegram
-# -----------------------------
+# -------------------------
+# отправка в Telegram
+# -------------------------
 
 telegram_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
 
