@@ -98,14 +98,20 @@ today_all = [
     if t.get("parentId") is None
 ]
 
-today_done = [t for t in today_all if t.get("isCompleted")]
-today_pending = [t for t in today_all if not t.get("isCompleted")]
-
 overdue_tasks = [
     t for t in overdue_tasks_raw
     if t.get("parentId") is None
     and not t.get("isCompleted")
     and t.get("overdue", 0) > 0
+]
+
+# исключаем просроченные из сегодняшних чтобы не было дублей
+overdue_ids = {t["id"] for t in overdue_tasks}
+
+today_done = [t for t in today_all if t.get("isCompleted")]
+today_pending = [
+    t for t in today_all
+    if not t.get("isCompleted") and t["id"] not in overdue_ids
 ]
 
 print(f"TODAY PENDING: {len(today_pending)} | DONE: {len(today_done)} | OVERDUE: {len(overdue_tasks)}")
