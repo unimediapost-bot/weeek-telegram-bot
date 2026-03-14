@@ -81,6 +81,16 @@ def group_by_project(tasks):
         grouped[project_name].append(task)
     return grouped
 
+def format_overdue_block(overdue_tasks):
+    message = "⚠️ Просроченные задачи\n\n"
+    for project, tasks in group_by_project(overdue_tasks).items():
+        message += f"📂 {project}\n"
+        for task in tasks:
+            days = task.get("overdue", 0)
+            message += f"- {task.get('title', '(без названия)')} (просрочено {days} дн.)\n"
+        message += "\n"
+    return message
+
 # -----------------------------
 # загружаем задачи на сегодня
 # -----------------------------
@@ -105,7 +115,6 @@ overdue_tasks = [
     and t.get("overdue", 0) > 0
 ]
 
-# исключаем просроченные из сегодняшних чтобы не было дублей
 overdue_ids = {t["id"] for t in overdue_tasks}
 
 today_done = [t for t in today_all if t.get("isCompleted")]
@@ -134,13 +143,7 @@ if BOT_MODE == "morning":
             message += "\n"
 
     if overdue_tasks:
-        message += "⚠️ Просроченные задачи\n\n"
-        for project, tasks in group_by_project(overdue_tasks).items():
-            message += f"📂 {project}\n"
-            for task in tasks:
-                days = task.get("overdue", 0)
-                message += f"- {task.get('title', '(без названия)')} (просрочено {days} дн.)\n"
-            message += "\n"
+        message += format_overdue_block(overdue_tasks)
 
 elif BOT_MODE == "midday":
     message = "☀️ Промежуточный итог\n\n"
@@ -161,7 +164,10 @@ elif BOT_MODE == "midday":
                 message += f"- {task.get('title', '(без названия)')}\n"
             message += "\n"
 
-    if not today_done and not today_pending:
+    if overdue_tasks:
+        message += format_overdue_block(overdue_tasks)
+
+    if not today_done and not today_pending and not overdue_tasks:
         message += "Задач на сегодня нет 🎉\n"
 
 else:  # evening
@@ -183,7 +189,10 @@ else:  # evening
                 message += f"- {task.get('title', '(без названия)')}\n"
             message += "\n"
 
-    if not today_done and not today_pending:
+    if overdue_tasks:
+        message += format_overdue_block(overdue_tasks)
+
+    if not today_done and not today_pending and not overdue_tasks:
         message += "Все задачи выполнены 🎉\n"
 
 # -----------------------------
