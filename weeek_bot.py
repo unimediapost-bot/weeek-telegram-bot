@@ -71,17 +71,6 @@ def load_tasks(params, retries=3, delay=5):
         offset += len(tasks)
     return all_tasks
 
-def parse_date(date_str):
-    if not date_str:
-        return None
-    try:
-        return datetime.strptime(date_str[:10], "%d.%m.%Y")
-    except:
-        try:
-            return datetime.strptime(date_str[:10], "%Y-%m-%d")
-        except:
-            return None
-
 def group_by_project(tasks):
     grouped = {}
     for task in tasks:
@@ -116,8 +105,7 @@ overdue_tasks = [
     t for t in overdue_tasks_raw
     if t.get("parentId") is None
     and not t.get("isCompleted")
-    and parse_date(t.get("dueDate") or t.get("date")) is not None
-    and parse_date(t.get("dueDate") or t.get("date")) < today_dt
+    and t.get("overdue", 0) > 0
 ]
 
 print(f"TODAY PENDING: {len(today_pending)} | DONE: {len(today_done)} | OVERDUE: {len(overdue_tasks)}")
@@ -144,8 +132,8 @@ if BOT_MODE == "morning":
         for project, tasks in group_by_project(overdue_tasks).items():
             message += f"📂 {project}\n"
             for task in tasks:
-                due = task.get("dueDate") or task.get("date") or ""
-                message += f"- {task.get('title', '(без названия)')} ({due})\n"
+                days = task.get("overdue", 0)
+                message += f"- {task.get('title', '(без названия)')} (просрочено {days} дн.)\n"
             message += "\n"
 
 elif BOT_MODE == "midday":
